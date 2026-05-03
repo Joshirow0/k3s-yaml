@@ -1,0 +1,51 @@
+apiVersion: cert-manager.io/v1
+kind: Certificate
+metadata:
+  name: cert-joshiro-dev
+  namespace: default
+spec:
+  secretName: cert-joshiro-dev
+  issuerRef:
+    name: cloudflare-issuer
+    kind: ClusterIssuer
+  dnsNames:
+  - "*.joshiro.dev"
+---
+apiVersion: cert-manager.io/v1
+kind: Certificate
+metadata:
+  name: cert-local-joshiro-dev
+  namespace: default
+spec:
+  secretName: cert-local-joshiro-dev
+  issuerRef:
+    name: cloudflare-issuer
+    kind: ClusterIssuer
+  dnsNames:
+  - "*.local.joshiro.dev"
+---
+apiVersion: cert-manager.io/v1
+kind: Certificate
+metadata:
+  name: cert-joshiro-xyz
+  namespace: default
+spec:
+  secretName: cert-joshiro-xyz
+  issuerRef:
+    name: cloudflare-issuer
+    kind: ClusterIssuer
+  dnsNames:
+  - "*.joshiro.xyz"
+---
+apiVersion: cert-manager.io/v1
+kind: Certificate
+metadata:
+  name: cert-local-joshiro-xyz
+  namespace: default
+spec:
+  secretName: cert-local-joshiro-xyz
+  issuerRef:
+    name: cloudflare-issuer
+    kind: ClusterIssuer
+  dnsNames:
+  - "*.local.joshiro.xyz"

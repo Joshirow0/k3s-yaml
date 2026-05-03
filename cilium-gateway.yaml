@@ -1,0 +1,107 @@
+# Gateway class: Defines the controller that will manage the gateways. In this case, we specify the Cilium Gateway Controller.
+apiVersion: gateway.networking.k8s.io/v1
+kind: GatewayClass
+metadata:
+  name: cilium
+spec:
+  controllerName: io.cilium/gateway-controller
+--- # Gateway: Defines the gateway resource that will handle incoming traffic.
+apiVersion: gateway.networking.k8s.io/v1
+kind: Gateway
+metadata:
+  name: main-gateway
+  namespace: default
+  annotations:
+    cert-manager.io/cluster-issuer: "cloudflare-issuer" # Cloudflare certificates
+spec:
+  gatewayClassName: cilium
+  infrastructure:
+    labels:
+      io.cilium/needs-ip: "true"
+  listeners:
+  - name: http # http listener on port 80, which will redirect to https
+    protocol: HTTP
+    port: 80
+    allowedRoutes:
+      namespaces:
+        from: All
+  - name: https-dev # Listener for https public .dev domain
+    protocol: HTTPS
+    port: 443
+    hostname: "*.joshiro.dev"
+    tls:
+      mode: Terminate
+      certificateRefs:
+      - name: cert-joshiro-dev
+    allowedRoutes:
+      namespaces:
+        from: All
+  - name: https-local-dev # Listener for https local .dev domain
+    protocol: HTTPS
+    port: 443
+    hostname: "*.local.joshiro.dev"
+    tls:
+      mode: Terminate
+      certificateRefs:
+      - name: cert-local-joshiro-dev
+    allowedRoutes:
+      namespaces:
+        from: All
+  - name: https-xyz # Listener for https public .xyz domain
+    protocol: HTTPS
+    port: 443
+    hostname: "*.joshiro.xyz"
+    tls:
+      mode: Terminate
+      certificateRefs:
+      - name: cert-joshiro-xyz
+    allowedRoutes:
+      namespaces:
+        from: All
+  - name: https-local-xyz # Listener for https local .xyz domain
+    protocol: HTTPS
+    port: 443
+    hostname: "*.local.joshiro.xyz"
+    tls:
+      mode: Terminate
+      certificateRefs:
+      - name: cert-local-joshiro-xyz
+    allowedRoutes:
+      namespaces:
+        from: All
+---
+# HTTPRoute: Defines the routing rules for the gateway. In this case, we set up a rule to redirect all HTTP traffic to HTTPS.
+apiVersion: gateway.networking.k8s.io/v1
+kind: HTTPRoute
+metadata:
+  name: http-to-https-redirect
+  namespace: default
+spec:
+  parentRefs:
+  - name: main-gateway
+    sectionName: http
+  rules:
+  - filters:
+    - type: RequestRedirect
+      requestRedirect:
+        scheme: https
+        statusCode: 301
+---
+# ClusterIssuer: Defines a ClusterIssuer resource for cert-manager that uses Cloudflare as the DNS provider to obtain TLS certificates from Let's Encrypt.
+apiVersion: cert-manager.io/v1
+kind: ClusterIssuer
+metadata:
+  name: cloudflare-issuer
+spec:
+  acme:
+    email: jose.uribe.or@gmail.com
+    server: https://acme-v02.api.letsencrypt.org/directory
+    privateKeySecretRef:
+      name: cloudflare-issuer-account-key
+    solvers:
+    - dns01:
+        cloudflare:
+          email: jose.uribe.or@gmail.com
+          apiTokenSecretRef:
+            name: cloudflare-api-token-secret
+            key: api-token

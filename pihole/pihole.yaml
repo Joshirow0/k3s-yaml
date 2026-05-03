@@ -1,0 +1,111 @@
+# Volume
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: pihole-pvc
+  namespace: default
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 1Gi
+---
+# Pi-hole Deployment
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: pihole
+  namespace: default
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: pihole
+  template:
+    metadata:
+      labels:
+        app: pihole
+    spec:
+      containers:
+      - name: pihole
+        image: pihole/pihole:latest
+        env:
+        - name: TZ
+          value: "America/Mexico_City"
+        - name: WEBPASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: pihole-web-password
+              key: password
+        ports:
+        - containerPort: 80
+          name: web
+        - containerPort: 53
+          name: dns-tcp
+          protocol: TCP
+        - containerPort: 53
+          name: dns-udp
+          protocol: UDP
+        volumeMounts:
+        - name: pihole-data
+          mountPath: /etc/pihole
+          subPath: etc-pihole
+        - name: pihole-data
+          mountPath: /etc/dnsmasq.d
+          subPath: etc-dnsmasq
+      volumes:
+      - name: pihole-data
+        persistentVolumeClaim:
+          claimName: pihole-pvc
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: pihole-web-svc
+  namespace: default
+spec:
+  selector:
+    app: pihole
+  ports:
+  - port: 80
+    targetPort: 80
+    name: web
+---
+# Router: Connects gateway (.23) to Pi-hole web service
+apiVersion: gateway.networking.k8s.io/v1
+kind: HTTPRoute
+metadata:
+  name: pihole-web-route
+  namespace: default
+spec:
+  parentRefs:
+  - name: main-gateway
+  hostnames:
+  - "pihole.local.joshiro.xyz"
+  rules:
+  - backendRefs:
+    - name: pihole-web-svc
+      port: 80
+---
+# LoadBalancer Service: Exposes Pi-hole DNS service on port 53
+apiVersion: v1
+kind: Service
+metadata:
+  name: pihole-dns-svc
+  namespace: default
+  labels:
+    io.cilium/needs-ip: "true"  # This label is required for Cilium to assign an IP to the LoadBalancer service
+spec:
+  type: LoadBalancer
+  selector:
+    app: pihole
+  ports:
+  - port: 53
+    targetPort: 53
+    protocol: UDP
+    name: dns-udp
+  - port: 53
+    targetPort: 53
+    protocol: TCP
+    name: dns-tcp
