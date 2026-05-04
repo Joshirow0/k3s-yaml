@@ -81,18 +81,16 @@ spec:
               - SETGID
               - SYS_NICE
         livenessProbe:
-          httpGet:
-            path: /admin/
-            port: 80
-          initialDelaySeconds: 60
-          periodSeconds: 30
-          timeoutSeconds: 5
+          tcpSocket:
+            port: dns-tcp
+          initialDelaySeconds: 15
+          periodSeconds: 10
+          timeoutSeconds: 3
           failureThreshold: 3
         readinessProbe:
-          httpGet:
-            path: /admin/
-            port: 80
-          initialDelaySeconds: 10
+          tcpSocket:
+            port: dns-tcp
+          initialDelaySeconds: 15
           periodSeconds: 10
           timeoutSeconds: 3
           failureThreshold: 3
@@ -100,9 +98,6 @@ spec:
         - name: pihole-data
           mountPath: /etc/pihole
           subPath: etc-pihole
-        - name: pihole-data
-          mountPath: /etc/dnsmasq.d
-          subPath: etc-dnsmasq
       volumes:
       - name: pihole-data
         persistentVolumeClaim:
