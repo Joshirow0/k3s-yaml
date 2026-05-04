@@ -1,9 +1,16 @@
+# Namespace dedicated
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: pihole
+  labels:
+    name: pihole
 # Volume
 apiVersion: v1
 kind: PersistentVolumeClaim
 metadata:
   name: pihole-pvc
-  namespace: default
+  namespace: pihole
 spec:
   accessModes:
     - ReadWriteOnce
@@ -16,9 +23,11 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: pihole
-  namespace: default
+  namespace: pihole
 spec:
   replicas: 1
+  strategy:
+    type: Recreate
   selector:
     matchLabels:
       app: pihole
@@ -27,26 +36,66 @@ spec:
       labels:
         app: pihole
     spec:
+      securityContext:
+        seccompProfile:
+          type: RuntimeDefault
       containers:
       - name: pihole
-        image: pihole/pihole:latest
+        image: pihole/pihole:2026.04.1
+        imagePullPolicy: IfNotPresent
         env:
         - name: TZ
           value: "America/Mexico_City"
-        - name: WEBPASSWORD
+        - name: FTLCONF_webserver_api_password # Pihole v6 env variable for web password
           valueFrom:
             secretKeyRef:
               name: pihole-web-password
               key: password
+        - name: FTLCONF_dns_listeningMode
+          value: "all"
         ports:
         - containerPort: 80
           name: web
+          protocol: TCP
         - containerPort: 53
           name: dns-tcp
           protocol: TCP
         - containerPort: 53
           name: dns-udp
           protocol: UDP
+        resources: # Resource requests and limits for the Pi-hole container
+          requests:
+            memory: "128Mi"
+            cpu: "100m"
+          limits:
+            memory: "512Mi"
+            cpu: "500m"
+        securityContext:
+          allowPrivilegeEscalation: false
+          capabilities:
+            add:
+              - NET_ADMIN # Necesary if you use DHCP or IPv6 RA. If you only do DNS blocking you can remove it, but it doesn't hurt.
+              - NET_BIND_SERVICE # To bind to privileged port 53. If you use a non-privileged port for DNS, you can remove this capability.
+              - CHOWN
+              - SETUID
+              - SETGID
+              - SYS_NICE
+        livenessProbe:
+          httpGet:
+            path: /admin/
+            port: 80
+          initialDelaySeconds: 60
+          periodSeconds: 30
+          timeoutSeconds: 5
+          failureThreshold: 3
+        readinessProbe:
+          httpGet:
+            path: /admin/
+            port: 80
+          initialDelaySeconds: 10
+          periodSeconds: 10
+          timeoutSeconds: 3
+          failureThreshold: 3
         volumeMounts:
         - name: pihole-data
           mountPath: /etc/pihole
@@ -63,7 +112,7 @@ apiVersion: v1
 kind: Service
 metadata:
   name: pihole-web-svc
-  namespace: default
+  namespace: pihole
 spec:
   selector:
     app: pihole
@@ -77,10 +126,13 @@ apiVersion: gateway.networking.k8s.io/v1
 kind: HTTPRoute
 metadata:
   name: pihole-web-route
-  namespace: default
+  namespace: pihole
 spec:
   parentRefs:
-  - name: main-gateway
+  - group: gateway.networking.k8s.io
+    kind: Gateway
+    name: main-gateway
+    namespace: default
   hostnames:
   - "pihole.local.joshiro.xyz"
   rules:
@@ -93,9 +145,11 @@ apiVersion: v1
 kind: Service
 metadata:
   name: pihole-dns-svc
-  namespace: default
+  namespace: pihole
   labels:
     io.cilium/needs-ip: "true"  # This label is required for Cilium to assign an IP to the LoadBalancer service
+  annotations:
+    io.cilium/lb-ipam-ips: "192.168.1.24" 
 spec:
   type: LoadBalancer
   selector:
