@@ -1,7 +1,10 @@
 # =============================================================================
 # Cloudflare-DDNS — Cloudflare Dynamic DNS updater (multi-domain)
+#
+# This file doesn't need to be changed, only secret-ddns.yaml
+# You can change the value of CF_INTERVAL if you want
+# Change CF_DOMAINS and CF_API_TOKEN values inside secret-ddns.yaml
 # =============================================================================
-
 apiVersion: v1
 kind: Namespace
 metadata:
