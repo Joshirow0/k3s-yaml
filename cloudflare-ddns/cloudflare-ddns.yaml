@@ -1,0 +1,64 @@
+# =============================================================================
+# Cloudflare-DDNS — Cloudflare Dynamic DNS updater (multi-domain)
+# =============================================================================
+
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: ddns
+  labels:
+    name: ddns
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: cloudflare-ddns
+  namespace: ddns
+  labels:
+    app: cloudflare-ddns
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: cloudflare-ddns
+  template:
+    metadata:
+      labels:
+        app: cloudflare-ddns
+    spec:
+      securityContext:
+        seccompProfile:
+          type: RuntimeDefault
+        runAsNonRoot: true
+        runAsUser: 65534    # nobody
+        runAsGroup: 65534
+      containers:
+        - name: ddns
+          image: joshirow0/cloudflare-ddns:2.0.1
+          imagePullPolicy: IfNotPresent
+          env:
+            - name: CF_API_TOKEN
+              valueFrom:
+                secretKeyRef:
+                  name: cloudflare-ddns-secret
+                  key: api-token
+            - name: CF_DOMAINS # JSON with the domains to update {name: "domain", proxied: true/false}
+              valueFrom:
+                secretKeyRef:
+                  name: cloudflare-ddns-secret
+                  key: domains
+            - name: CF_INTERVAL # Interval between checks (Go format: 5m, 30s, 1h)
+              value: "5m"
+          resources: # Resources for the container
+            requests:
+              memory: "16Mi"
+              cpu: "10m"
+            limits:
+              memory: "32Mi"
+              cpu: "50m"
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop:
+                - ALL
