@@ -1,10 +1,12 @@
+# l2 announcement policy and load balancer IP pool
+# -----------------------------
 apiVersion: "cilium.io/v2alpha1"
 kind: CiliumL2AnnouncementPolicy
 metadata:
   name: l2-policy
 spec:
   interfaces:
-  - eth0   # Change to the name of the interface to announce on
+  - eth0   # Change to the name of the interface to announce on 
   externalIPs: true
   loadBalancerIPs: true
 ---
@@ -13,9 +15,9 @@ kind: CiliumLoadBalancerIPPool
 metadata:
   name: pool
 spec:
-  blocks: # ip range to allocate from
+  blocks: # ip range to allocate from (check that this range is not used by any other service or pod in your network)
     - start: 192.168.1.23  # first IP address to allocate
       stop: 192.168.1.33 # last IP address to allocate
   serviceSelector:
     matchLabels:
-      io.cilium/needs-ip: "true"
+      io.cilium/needs-ip: "true"  # This label is used to select services that need an IP address from this pool.

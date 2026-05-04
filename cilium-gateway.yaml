@@ -1,3 +1,15 @@
+# Main Gateway configuration for Cilium Gateway Controller
+# This manifest defines the GatewayClass, Gateway, HTTPRoute, and ClusterIssuer resources needed to set up a
+# main gateway using Cilium Gateway Controller. This gateway will handle incoming HTTP and HTTPS traffic,
+# redirecting HTTP to HTTPS and serving TLS certificates for specified domains
+# using cert-manager with Cloudflare as the DNS provider.
+#
+# Warning: Secrets needed !!
+# Make sure to create the Kubernetes secret named "cloudflare-api-token-secret"
+# in the same namespace where the ClusterIssuer is defined.
+# This secret need DNS edit permissions and zone read permissions.
+#----------------------------------------------
+
 # Gateway class: Defines the controller that will manage the gateways. In this case, we specify the Cilium Gateway Controller.
 apiVersion: gateway.networking.k8s.io/v1
 kind: GatewayClass
@@ -17,7 +29,7 @@ spec:
   gatewayClassName: cilium
   infrastructure:
     labels:
-      io.cilium/needs-ip: "true"
+      io.cilium/needs-ip: "true" # This label is used to assign an IP address from the CiliumLoadBalancerIPPool defined in cilium-IP-pool.yaml
   listeners:
   - name: http # http listener on port 80, which will redirect to https
     protocol: HTTP
@@ -94,14 +106,14 @@ metadata:
   name: cloudflare-issuer
 spec:
   acme:
-    email: jose.uribe.or@gmail.com
+    email: jose.uribe.or@gmail.com  # Change to your email address
     server: https://acme-v02.api.letsencrypt.org/directory
     privateKeySecretRef:
       name: cloudflare-issuer-account-key
     solvers:
     - dns01:
         cloudflare:
-          email: jose.uribe.or@gmail.com
-          apiTokenSecretRef:
+          email: jose.uribe.or@gmail.com  # Change to your email address
+          apiTokenSecretRef:  # Reference to the Kubernetes secret that contains the Cloudflare API token (add this secret previously to your cluster with the appropriate permissions to manage DNS records for your domain)
             name: cloudflare-api-token-secret
             key: api-token

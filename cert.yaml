@@ -1,3 +1,7 @@
+# Definition of TLS certificates for joshiro.dev and joshiro.xyz domains using cert-manager
+# with Cloudflare as the DNS provider. These certificates will be used by the
+# Cilium Gateway to serve HTTPS traffic for the specified domains.
+# --------------------------------
 apiVersion: cert-manager.io/v1
 kind: Certificate
 metadata:
