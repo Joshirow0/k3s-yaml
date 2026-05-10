@@ -1,0 +1,23 @@
+# Hubble UI Route Manifest
+# This manifest defines an HTTPRoute for the Hubble UI service, allowing it to be accessed via the specified hostname and path.
+# This configure a domain name (ex: hubble.local.joshiro.xyz) to route traffic to a backend (backendRefs: hubble-ui).
+# ====================================================
+apiVersion: gateway.networking.k8s.io/v1
+kind: HTTPRoute
+metadata:
+  name: hubble-ui-route
+  namespace: kube-system # Important!: This dot must be in the same namespace as the Hubble UI service, which is typically kube-system
+spec:
+  parentRefs:
+  - name: main-gateway   # Gateway name
+    namespace: default   # Gateway namespace
+  hostnames:
+  - "hubble.local.joshiro.xyz"
+  rules:
+  - matches:
+    - path:
+        type: PathPrefix
+        value: /
+    backendRefs:
+    - name: hubble-ui    # hubble-ui service name
+      port: 80

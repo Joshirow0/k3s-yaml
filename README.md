@@ -78,6 +78,7 @@ Finally, review each of the base manifests, personalize them for your needs (IP 
 | **cilium-IP-pool.yaml** | Provides an IP pool for your services | High |
 | **cilium-gateway.yaml** | Defines the main gateway to access to your services | High (Isn't needed if Ingress is used) |
 | **cert.yaml** | Declaration of your certificates | Medium (SSL/TLS) |
+| **hubble-route.yaml** | Route to hubble UI | Low |
 
 After personalice them, apply with:
 
