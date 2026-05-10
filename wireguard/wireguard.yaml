@@ -1,0 +1,98 @@
+# WireGuard VPN
+#
+# ----------------------------------------
+# Namespace
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: vpn
+---
+# PVC: It is vital for the keys (QR codes) not to be erased if the Pi restarts.
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: wireguard-config
+  namespace: vpn
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 1Gi
+---
+# Deployment
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: wireguard
+  namespace: vpn
+  labels:
+    app: wireguard
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: wireguard
+  template:
+    metadata:
+      labels:
+        app: wireguard
+    spec:
+      containers:
+      - name: wireguard
+        image: lscr.io/linuxserver/wireguard:latest
+        imagePullPolicy: IfNotPresent
+        securityContext:
+          capabilities: # this is needed to create the tunnel interface
+            add: 
+              - NET_ADMIN
+              - SYS_MODULE
+        env:
+          - name: PUID # user id of the user to run the container as
+            value: "1000"
+          - name: PGID # group id of the user to run the container as
+            value: "1000"
+          - name: TZ # timezone
+            value: "America/Mexico_City"
+          - name: SERVERURL # public domain of the server
+            value: "use.joshiro.xyz"
+          - name: SERVERPORT # port for the VPN
+            value: "51820"
+          - name: PEERS # names of the peers (clients)
+            value: "laptop,celular,pcTrabajo" # Names MUST NOT contain non-alphanumeric characters
+          - name: PEERDNS # dns to use for the peers
+            #value: "auto" # for automatic dns assignment
+            value: "192.168.1.24" # IP of custom DNS. This case pi-hole dns
+        ports:
+          - containerPort: 51820
+            protocol: UDP
+        volumeMounts:
+          - name: config
+            mountPath: /config
+          - name: lib-modules
+            mountPath: /lib/modules
+      volumes:
+        - name: config
+          persistentVolumeClaim:
+            claimName: wireguard-config
+        - name: lib-modules
+          hostPath:
+            path: /lib/modules
+---
+# Service (LoadBalancer via Cilium)
+apiVersion: v1
+kind: Service
+metadata:
+  name: wireguard-svc
+  namespace: vpn
+  labels:
+    io.cilium/needs-ip: "true"  # IP assigment by Cilium
+spec:
+  type: LoadBalancer
+  externalTrafficPolicy: Local
+  ports:
+    - port: 51820
+      targetPort: 51820
+      protocol: UDP
+  selector:
+    app: wireguard
