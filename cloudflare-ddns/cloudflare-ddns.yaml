@@ -37,7 +37,7 @@ spec:
         runAsGroup: 65534
       containers:
         - name: ddns
-          image: joshirow0/cloudflare-ddns:2.0.1
+          image: joshirow0/cloudflare-ddns:2.0.2
           imagePullPolicy: IfNotPresent
           env:
             - name: CF_API_TOKEN
