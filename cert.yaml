@@ -13,6 +13,7 @@ spec:
     name: cloudflare-issuer
     kind: ClusterIssuer
   dnsNames:
+  - "joshiro.dev"
   - "*.joshiro.dev"
 ---
 apiVersion: cert-manager.io/v1
@@ -39,6 +40,7 @@ spec:
     name: cloudflare-issuer
     kind: ClusterIssuer
   dnsNames:
+  - "joshiro.xyz"
   - "*.joshiro.xyz"
 ---
 apiVersion: cert-manager.io/v1

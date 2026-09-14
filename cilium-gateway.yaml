@@ -40,6 +40,17 @@ spec:
   - name: https-dev # Listener for https public .dev domain
     protocol: HTTPS
     port: 443
+    hostname: "joshiro.dev"
+    tls:
+      mode: Terminate
+      certificateRefs:
+      - name: cert-joshiro-dev
+    allowedRoutes:
+      namespaces:
+        from: All
+  - name: https-dev-subdomains # Listener for https public .dev subdomains
+    protocol: HTTPS
+    port: 443
     hostname: "*.joshiro.dev"
     tls:
       mode: Terminate
@@ -60,6 +71,17 @@ spec:
       namespaces:
         from: All
   - name: https-xyz # Listener for https public .xyz domain
+    protocol: HTTPS
+    port: 443
+    hostname: "joshiro.xyz"
+    tls:
+      mode: Terminate
+      certificateRefs:
+      - name: cert-joshiro-xyz
+    allowedRoutes:
+      namespaces:
+        from: All
+  - name: https-xyz-subdomains # Listener for https public .xyz subdomains
     protocol: HTTPS
     port: 443
     hostname: "*.joshiro.xyz"
