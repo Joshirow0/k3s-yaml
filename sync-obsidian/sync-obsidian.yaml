@@ -1,0 +1,148 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: obsidian-sync
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: couchdb-data-pvc # data dir
+  namespace: obsidian-sync
+spec:
+  accessModes:
+    - ReadWriteOnce
+  storageClassName: local-path
+  resources:
+    requests:
+      storage: 100Gi
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: couchdb-etc-pvc # config dir
+  namespace: obsidian-sync
+spec:
+  accessModes:
+    - ReadWriteOnce
+  storageClassName: local-path
+  resources:
+    requests:
+      storage: 1Gi
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: couchdb
+  namespace: obsidian-sync
+  labels:
+    app: couchdb
+spec:
+  replicas: 1
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app: couchdb
+  template:
+    metadata:
+      labels:
+        app: couchdb
+    spec:
+      enableServiceLinks: false
+      # aux container to fix permissions on the data directory before starting db
+      initContainers:
+      - name: fix-permissions
+        image: busybox:latest
+        imagePullPolicy: IfNotPresent
+        command:
+        - "sh"
+        - "-c"
+        - "chown -R 5984:5984 /opt/couchdb/data /opt/couchdb/etc/local.d && chmod -R 770 /opt/couchdb/data /opt/couchdb/etc/local.d"
+        securityContext:
+          runAsUser: 0
+        volumeMounts:
+        - name: couchdb-data
+          mountPath: /opt/couchdb/data
+        - name: couchdb-etc
+          mountPath: /opt/couchdb/etc/local.d
+
+      securityContext:
+        fsGroup: 5984
+        runAsUser: 5984
+        runAsGroup: 5984
+
+      containers:
+      - name: couchdb
+        image: couchdb:3.4
+        imagePullPolicy: IfNotPresent
+        env:
+        - name: COUCHDB_USER
+          valueFrom:
+            secretKeyRef:
+              name: couchdb-credentials
+              key: admin-user
+        - name: COUCHDB_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: couchdb-credentials
+              key: admin-password
+        - name: NODENAME
+          value: "127.0.0.1"
+        ports:
+        - containerPort: 5984
+          name: http
+        volumeMounts:
+        - name: couchdb-data
+          mountPath: /opt/couchdb/data
+        - name: couchdb-etc
+          mountPath: /opt/couchdb/etc/local.d
+        resources:
+          requests:
+            cpu: 100m
+            memory: 128Mi
+          limits:
+            cpu: 500m
+            memory: 512Mi
+
+      volumes:
+      - name: couchdb-data
+        persistentVolumeClaim:
+          claimName: couchdb-data-pvc
+      - name: couchdb-etc
+        persistentVolumeClaim:
+          claimName: couchdb-etc-pvc
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: couchdb-svc
+  namespace: obsidian-sync
+spec:
+  selector:
+    app: couchdb
+  ports:
+  - name: http
+    port: 5984
+    targetPort: 5984
+---
+apiVersion: gateway.networking.k8s.io/v1
+kind: HTTPRoute
+metadata:
+  name: couchdb-route
+  namespace: obsidian-sync
+spec:
+  parentRefs:
+  - group: gateway.networking.k8s.io
+    kind: Gateway
+    name: main-gateway
+    namespace: default
+  hostnames:
+  - "obsidian.local.joshiro.xyz"
+  rules:
+  - matches:
+    - path:
+        type: PathPrefix
+        value: /
+    backendRefs:
+    - name: couchdb-svc
+      port: 5984
